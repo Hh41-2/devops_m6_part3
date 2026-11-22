@@ -21,10 +21,12 @@ env:
   TARGET_BRANCH: main
  # Declaring the jobs that we want our runner to run. We want it to build and push the images to our gitops repo
 jobs:
+  jobs:
   build-and-push:
     name: Build & Push Images
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [backend, transactions, studentportfolio, syncer]
     steps:
@@ -55,6 +57,12 @@ jobs:
         if: steps.check.outputs.build == 'true'
         uses: docker/setup-buildx-action@v3
 
+      - name: Compute lowercase image prefix
+        if: steps.check.outputs.build == 'true'
+        run: |
+          prefix="${REGISTRY}/${GITHUB_REPOSITORY}"
+          echo "IMAGE_PREFIX=${prefix,,}" >> "$GITHUB_ENV"
+
       - name: Build & push ${{ matrix.service }}
         if: steps.check.outputs.build == 'true'
         uses: docker/build-push-action@v5
@@ -62,8 +70,8 @@ jobs:
           context: ./${{ matrix.service }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ github.event.repository.name }}-${{ matrix.service }}:latest
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ github.event.repository.name }}-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}
           provenance: false
           sbom: false
 
