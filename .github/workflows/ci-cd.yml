@@ -22,58 +22,58 @@ env:
  # Declaring the jobs that we want our runner to run. We want it to build and push the images to our gitops repo
 jobs:
   jobs:
-  build-and-push:
-    name: Build & Push Images
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [backend, transactions, studentportfolio, syncer]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    build-and-push:
+      name: Build & Push Images
+      runs-on: ubuntu-latest
+      strategy:
+        fail-fast: false
+        matrix:
+          service: [backend, transactions, studentportfolio, syncer]
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
 
-      - name: Check service has a Dockerfile
-        id: check
-        run: |
-          if [ -f "./${{ matrix.service }}/Dockerfile" ]; then
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "build=false" >> "$GITHUB_OUTPUT"
-            echo "No Dockerfile for ${{ matrix.service }} — skipping."
-          fi
+        - name: Check service has a Dockerfile
+          id: check
+          run: |
+            if [ -f "./${{ matrix.service }}/Dockerfile" ]; then
+              echo "build=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "build=false" >> "$GITHUB_OUTPUT"
+              echo "No Dockerfile for ${{ matrix.service }} — skipping."
+            fi
 
-      - name: Log in to GHCR
-        if: steps.check.outputs.build == 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.CR_PAT }}
+        - name: Log in to GHCR
+          if: steps.check.outputs.build == 'true'
+          uses: docker/login-action@v3
+          with:
+            registry: ${{ env.REGISTRY }}
+            username: ${{ github.repository_owner }}
+            password: ${{ secrets.CR_PAT }}
 
-      - name: Set up Docker Buildx
-        if: steps.check.outputs.build == 'true'
-        uses: docker/setup-buildx-action@v3
+        - name: Set up Docker Buildx
+          if: steps.check.outputs.build == 'true'
+          uses: docker/setup-buildx-action@v3
 
-      - name: Compute lowercase image prefix
-        if: steps.check.outputs.build == 'true'
-        run: |
-          prefix="${REGISTRY}/${GITHUB_REPOSITORY}"
-          echo "IMAGE_PREFIX=${prefix,,}" >> "$GITHUB_ENV"
+        - name: Compute lowercase image prefix
+          if: steps.check.outputs.build == 'true'
+          run: |
+            prefix="${REGISTRY}/${GITHUB_REPOSITORY}"
+            echo "IMAGE_PREFIX=${prefix,,}" >> "$GITHUB_ENV"
 
-      - name: Build & push ${{ matrix.service }}
-        if: steps.check.outputs.build == 'true'
-        uses: docker/build-push-action@v5
-        with:
-          context: ./${{ matrix.service }}
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
-            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}
-          provenance: false
-          sbom: false
+        - name: Build & push ${{ matrix.service }}
+          if: steps.check.outputs.build == 'true'
+          uses: docker/build-push-action@v5
+          with:
+            context: ./${{ matrix.service }}
+            push: true
+            tags: |
+              ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
+              ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}
+            provenance: false
+            sbom: false
 
   update-gitops:
     name: Update GitOps manifests
@@ -96,6 +96,9 @@ jobs:
           TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
         run: |
           set -euo pipefail
+
+          OWNER="${OWNER,,}"
+          APP_REPO="${APP_REPO,,}"
 
           # ---- Git identity & credentials
           git config --global user.name  "GitHub Actions"
